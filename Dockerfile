@@ -1,25 +1,24 @@
-FROM node:18-alpine
+# NOX Voice AI — Production Dockerfile
+FROM node:18-slim
 
-# Install Python for edge-tts (TTS)
-RUN apk add --no-cache python3 py3-pip && \
-    pip3 install --break-system-packages edge-tts
+# Install Python for edge-tts
+RUN apt-get update && apt-get install -y python3 python3-pip && \
+    pip3 install edge-tts --break-system-packages && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Node.js dependencies
-COPY package.json package-lock.json* ./
+# Copy package files and install
+COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy source
+# Copy source code
 COPY src/ ./src/
-COPY scripts/ ./scripts/
+COPY public/ ./public/
 
-# Expose port
-EXPOSE 4000
+# Render uses PORT env variable (default 10000)
+ENV PORT=10000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
+EXPOSE 10000
 
-# Start server
 CMD ["node", "src/index.js"]

@@ -21,27 +21,10 @@ function initializeFirebaseAdmin() {
     return admin.app();
   }
 
-  // Option 1: Use service account JSON file (recommended for production)
-  const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (serviceAccountPath) {
-    try {
-      const serviceAccount = require(path.resolve(serviceAccountPath));
-      const app = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id,
-        storageBucket: `${serviceAccount.project_id}.appspot.com`,
-      });
-      console.log('🔥 Firebase Admin initialized with service account file');
-      return app;
-    } catch (error) {
-      console.warn('⚠️ Failed to load service account file:', error.message);
-    }
-  }
-
-  // Option 2: Use environment variables
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  // Option 1: Use environment variables (best for cloud deployment)
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = (process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY || '')?.replace(/\\n/g, '\n');
 
   if (projectId && clientEmail && privateKey) {
     const app = admin.initializeApp({
