@@ -94,6 +94,44 @@ router.post('/process-audio', upload.single('audio'), async (req, res) => {
 });
 
 /**
+ * POST /api/pipeline/process-voice
+ * Alias for process-audio (browser voice UI uses this)
+ */
+router.post('/process-voice', upload.single('audio'), async (req, res) => {
+  try {
+    const { callId, language } = req.body;
+    const audioBuffer = req.file?.buffer;
+
+    if (!callId || !audioBuffer) {
+      return res.status(400).json({ success: false, error: 'callId and audio file required' });
+    }
+
+    const session = getSession(callId);
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Session not found. Start a session first.' });
+    }
+
+    // Process the full pipeline
+    const result = await processVoiceTurn(callId, audioBuffer);
+
+    res.json({
+      success: true,
+      customerText: result.customerText,
+      text: result.text,
+      audioBase64: result.audioBuffer.length > 0 ? result.audioBuffer.toString('base64') : null,
+      confidence: result.confidence,
+      language: result.language,
+      toolCalled: result.toolCalled,
+      sessionActive: result.sessionActive,
+      processingTime: result.totalTime,
+    });
+  } catch (error) {
+    console.error('❌ Process voice error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * POST /api/pipeline/process-text
  * Text-only pipeline: Send text → get text + audio response
  * For testing without microphone
@@ -126,6 +164,7 @@ router.post('/process-text', async (req, res) => {
     res.json({
       success: true,
       customerText: text,
+      text: aiResult.text,
       aiText: aiResult.text,
       audioBase64,
       audioFormat: 'mp3',

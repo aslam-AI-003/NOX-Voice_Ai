@@ -50,6 +50,10 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// Serve Browser Voice UI (static files)
+const path = require('path');
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // Security headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
