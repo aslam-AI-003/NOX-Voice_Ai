@@ -8,8 +8,8 @@
 const admin = require('firebase-admin');
 const path = require('path');
 
-// Load environment variables
-require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
+// Load environment variables (uses .env in project root)
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SINGLETON INITIALIZATION
