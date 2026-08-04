@@ -1,8 +1,12 @@
 FROM node:18-alpine
 
+# Install Python for edge-tts (TTS)
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install --break-system-packages edge-tts
+
 WORKDIR /app
 
-# Install dependencies
+# Install Node.js dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci --only=production
 

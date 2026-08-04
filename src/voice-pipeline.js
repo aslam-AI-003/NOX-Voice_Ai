@@ -246,7 +246,7 @@ async function handleToolCalls(callId, assistantMessage) {
  */
 async function executeToolCall(callId, functionName, args) {
   const session = sessions.get(callId);
-  const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+  const baseUrl = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
 
   try {
     switch (functionName) {
@@ -365,25 +365,28 @@ async function speechToTextFromFile(filePath, language = 'ta') {
   return await speechToText(audioBuffer, language);
 }
 
-// ━━━━ EDGE-TTS (Microsoft FREE — Tamil voices!) ━━━━
+// ━━━━ EDGE-TTS (Microsoft FREE — Tamil voices via Python CLI) ━━━━
 
 /**
- * Convert text to speech using edge-tts (completely free, no API key!)
+ * Convert text to speech using edge-tts Python CLI (pip install edge-tts)
  * Tamil voice: ta-IN-PallaviNeural (female, excellent quality)
  * English voice: en-IN-NeerjaNeural (female, Indian English)
+ * Install: pip install edge-tts
  */
 async function textToSpeech(text, language = 'ta') {
+  const voice = language === 'ta' || language === 'tanglish'
+    ? 'ta-IN-PallaviNeural'
+    : 'en-IN-NeerjaNeural';
+
+  const tmpFile = path.join(os.tmpdir(), `noe_tts_${Date.now()}.mp3`);
+
   try {
-    const voice = language === 'ta' || language === 'tanglish'
-      ? 'ta-IN-PallaviNeural'
-      : 'en-IN-NeerjaNeural';
+    // Escape text for shell (remove quotes, limit length)
+    const safeText = text.replace(/["`$\\]/g, '').slice(0, 500);
 
-    const tmpFile = path.join(os.tmpdir(), `noe_tts_${Date.now()}.mp3`);
-
-    // Use edge-tts CLI (installed via pip)
     await new Promise((resolve, reject) => {
-      const cmd = `edge-tts --voice "${voice}" --text "${text.replace(/"/g, '\\"')}" --write-media "${tmpFile}"`;
-      exec(cmd, { timeout: 10000 }, (error, stdout, stderr) => {
+      const cmd = `edge-tts --voice "${voice}" --text "${safeText}" --write-media "${tmpFile}"`;
+      exec(cmd, { timeout: 15000 }, (error, stdout, stderr) => {
         if (error) reject(error);
         else resolve(stdout);
       });
@@ -396,8 +399,9 @@ async function textToSpeech(text, language = 'ta') {
     return audioBuffer;
   } catch (error) {
     console.error('❌ edge-tts error:', error.message);
-    // Fallback: return empty buffer (text-only mode)
     console.warn('⚠️ TTS unavailable — install with: pip install edge-tts');
+    // Return empty buffer (browser UI will use Web Speech API as fallback)
+    try { fs.unlinkSync(tmpFile); } catch (e) {}
     return Buffer.alloc(0);
   }
 }

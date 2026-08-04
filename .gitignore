@@ -28,3 +28,4 @@ build/
 
 # Recordings (voice call recordings)
 recordings/
+service-account.json
