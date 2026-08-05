@@ -38,7 +38,13 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (curl, mobile apps, server-to-server)
     if (!origin) return callback(null, true);
+    // Allow all Vercel preview/production deployments
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    // Allow all Render deployments
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
+    // Allow configured origins
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
