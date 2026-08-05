@@ -118,7 +118,7 @@ router.post('/process-voice', upload.single('audio'), async (req, res) => {
       success: true,
       customerText: result.customerText,
       text: result.text,
-      audioBase64: result.audioBuffer.length > 0 ? result.audioBuffer.toString('base64') : null,
+      audioBase64: result.audioBuffer && result.audioBuffer.length > 0 ? result.audioBuffer.toString('base64') : null,
       confidence: result.confidence,
       language: result.language,
       toolCalled: result.toolCalled,

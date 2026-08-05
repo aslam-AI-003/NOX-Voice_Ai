@@ -414,26 +414,54 @@ async function processVoiceTurn(callId, audioBuffer) {
 
   const startTime = Date.now();
 
+  // Validate audio buffer
+  if (!audioBuffer || audioBuffer.length < 100) {
+    const repeatText = session.detectedLanguage === 'en'
+      ? "I didn't hear anything. Please try again."
+      : "Onnum kaelu padala. Thiruppi try pannunga.";
+    return { audioBuffer: Buffer.alloc(0), text: repeatText, customerText: '', confidence: 0, sessionActive: true, totalTime: 0 };
+  }
+
   // Step 1: Speech-to-Text (Groq Whisper — FREE)
   console.log(`\n━━━ TURN ${session.turnCount + 1} ━━━`);
-  const sttResult = await speechToText(audioBuffer, session.detectedLanguage);
-  console.log(`📝 STT (${Date.now() - startTime}ms): "${sttResult.text}" [${sttResult.language}]`);
+  let sttResult;
+  try {
+    sttResult = await speechToText(audioBuffer, session.detectedLanguage);
+    console.log(`📝 STT (${Date.now() - startTime}ms): "${sttResult.text}" [${sttResult.language}]`);
+  } catch (sttError) {
+    console.error(`❌ STT failed:`, sttError.message);
+    const errorText = session.detectedLanguage === 'en'
+      ? "Sorry, I couldn't understand the audio. Please speak clearly or type your order."
+      : "Audio puriyala. Clear-a pesunga illa type pannunga.";
+    return { audioBuffer: Buffer.alloc(0), text: errorText, customerText: '', confidence: 0, sessionActive: true, totalTime: Date.now() - startTime };
+  }
 
   if (!sttResult.text || sttResult.text.trim() === '') {
     const repeatText = session.detectedLanguage === 'en'
       ? "I didn't catch that. Could you please repeat?"
       : "Puriyala, thiruppi sollunga please?";
-    const audioOut = await textToSpeech(repeatText, session.detectedLanguage);
-    return { audioBuffer: audioOut, text: repeatText, customerText: '', confidence: 0 };
+    const audioOut = await textToSpeech(repeatText, session.detectedLanguage).catch(() => Buffer.alloc(0));
+    return { audioBuffer: audioOut, text: repeatText, customerText: '', confidence: 0, sessionActive: true, totalTime: Date.now() - startTime };
   }
 
   // Step 2: Process through Groq LLM (Llama 3.3 70B — FREE)
-  const aiResult = await processCustomerInput(callId, sttResult.text, sttResult.language);
-  console.log(`🤖 LLM (${Date.now() - startTime}ms): "${aiResult.text.slice(0, 100)}"`);
+  let aiResult;
+  try {
+    aiResult = await processCustomerInput(callId, sttResult.text, sttResult.language);
+    console.log(`🤖 LLM (${Date.now() - startTime}ms): "${aiResult.text.slice(0, 100)}"`);
+  } catch (llmError) {
+    console.error(`❌ LLM failed:`, llmError.message);
+    aiResult = { text: "Sorry, technical issue. Thiruppi try pannunga.", toolCalled: null, sessionActive: true };
+  }
 
   // Step 3: Text-to-Speech (edge-tts — FREE Tamil voice)
-  const audioOut = await textToSpeech(aiResult.text, session.detectedLanguage);
-  console.log(`🔊 TTS (${Date.now() - startTime}ms): ${audioOut.length} bytes`);
+  let audioOut = Buffer.alloc(0);
+  try {
+    audioOut = await textToSpeech(aiResult.text, session.detectedLanguage);
+    console.log(`🔊 TTS (${Date.now() - startTime}ms): ${audioOut.length} bytes`);
+  } catch (ttsError) {
+    console.warn(`⚠️ TTS failed (browser fallback):`, ttsError.message);
+  }
   console.log(`⏱️ Total turn time: ${Date.now() - startTime}ms`);
 
   // Emit to admin dashboard
@@ -454,7 +482,7 @@ async function processVoiceTurn(callId, audioBuffer) {
     confidence: sttResult.confidence,
     language: sttResult.language,
     toolCalled: aiResult.toolCalled,
-    sessionActive: aiResult.sessionActive,
+    sessionActive: aiResult.sessionActive !== false,
     totalTime: Date.now() - startTime,
   };
 }
